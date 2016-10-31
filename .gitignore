@@ -1,4 +1,8 @@
-target/
-.classpath
-.project
-.settings
+/.gradle/
+/target/
+/.classpath
+/.project
+/.settings/
+/*.i*
+/build/
+/gen-src/
