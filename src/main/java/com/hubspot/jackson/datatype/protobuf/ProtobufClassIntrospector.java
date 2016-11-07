@@ -11,13 +11,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 @SuppressWarnings("serial")
 public class ProtobufClassIntrospector extends BasicClassIntrospector {
-    @SuppressFBWarnings(value="SE_BAD_FIELD")
-    private final ExtensionRegistryWrapper extensionRegistry;
-
-    public ProtobufClassIntrospector(ExtensionRegistryWrapper extensionRegistry) {
-        this.extensionRegistry = extensionRegistry;
-    }
-
     @Override
     protected POJOPropertiesCollector constructPropertyCollector(MapperConfig<?> config,
                                                                  AnnotatedClass ac, JavaType type, boolean forSerialization, String mutatorPrefix)
