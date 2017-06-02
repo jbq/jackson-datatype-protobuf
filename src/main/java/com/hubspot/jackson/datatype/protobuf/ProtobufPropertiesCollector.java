@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.PropertyName;
 import com.fasterxml.jackson.databind.cfg.MapperConfig;
 import com.fasterxml.jackson.databind.introspect.*;
+import com.google.common.base.CaseFormat;
 import com.google.protobuf.Descriptors;
 
 import java.lang.reflect.Method;
@@ -33,6 +34,28 @@ public class ProtobufPropertiesCollector extends POJOPropertiesCollector {
         }
     }
 
+    private String computeFieldGetter(String fieldName, Descriptors.FieldDescriptor field) {
+        if (field.isRepeated()) {
+            if (field.isMapField()) {
+                return "get" + capitalize(fieldName) + "Map";
+            } else
+                return "get" + capitalize(fieldName) + "List";
+        } else {
+            return "get" + capitalize(fieldName);
+        }
+    }
+
+    private String computeFieldSetter(String fieldName, Descriptors.FieldDescriptor field) {
+        if (field.isRepeated()) {
+            if (field.isMapField())
+                return "putAll" + capitalize(fieldName);
+
+            return "addAll" + capitalize(fieldName);
+        }
+
+        return "set" + capitalize(fieldName);
+    }
+
     /**
      *
      * @param props
@@ -40,39 +63,42 @@ public class ProtobufPropertiesCollector extends POJOPropertiesCollector {
      * @param clazz class to introspect
      */
     protected void addProperty(Map<String, POJOPropertyBuilder> props, Descriptors.FieldDescriptor field, Class clazz) {
-        PropertyName pn = new PropertyName(field.getName());
+        // Make sure to convert field name from official protobuf snake case to camel case
+        String fieldName = field.getName();
+
+        String fieldGetter = computeFieldGetter(fieldName, field);
+        String fieldSetter = computeFieldSetter(fieldName, field);
+
         try {
-            String fieldGetter;
+            clazz.getMethod(fieldGetter);
+        } catch (NoSuchMethodException e) {
+            fieldName = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName());
+            fieldGetter = computeFieldGetter(fieldName, field);
+            fieldSetter = computeFieldSetter(fieldName, field);
+        }
 
-            if (field.isRepeated() && ! field.isMapField())
-                fieldGetter = "get" + capitalize(field.getName()) + "List";
-            else
-                fieldGetter = "get" + capitalize(field.getName());
+        Method getterMethod = null, setterMethod = null;
 
-            String fieldSetter = "set" + capitalize(field.getName());
-            Method setterMethod = null;
+        try {
+            getterMethod = clazz.getMethod(fieldGetter);
+            setterMethod = clazz.getMethod(fieldSetter);
+        } catch (NoSuchMethodException e) {
+            // Ignore
+        }
 
-            for (Method m : clazz.getDeclaredMethods()) {
-                if (m.getName().equals(fieldSetter)) {
-                    setterMethod = m;
-                    break;
-                }
-            }
+        PropertyName pn = new PropertyName(fieldName);
 
+        if (getterMethod != null)
             _property(props, pn).addGetter(
-                    new AnnotatedMethod(_classDef, clazz.getMethod(fieldGetter), null, null),
+                    new AnnotatedMethod(_classDef, getterMethod, null, null),
                     pn,
                     true, true, false);
 
-            if (setterMethod != null)
-                _property(props, pn).addSetter(
-                        new AnnotatedMethod(_classDef, setterMethod, null, null),
-                        pn,
-                        true, true, false);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Cannot introspect " + clazz, e);
-        }
+        if (setterMethod != null)
+            _property(props, pn).addSetter(
+                    new AnnotatedMethod(_classDef, setterMethod, null, null),
+                    pn,
+                    true, true, false);
     }
 
     /**

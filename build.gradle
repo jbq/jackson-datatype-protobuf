@@ -3,7 +3,7 @@ apply plugin: 'maven'
 apply plugin: 'idea'
 
 group = 'com.hubspot.jackson'
-version = '0.9.3-p1'
+version = '0.9.3-p2'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
